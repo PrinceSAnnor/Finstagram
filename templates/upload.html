@@ -1,20 +1,27 @@
 <html>
-    <head>
-        <title>Image Upload</title>
-    </head>
-    <body>
-        <h1>Upload an Image!</h1>
-        <div>
-            <form action="/uploadImage" method="post" enctype="multipart/form-data">
-                <input type="file" name="imageToUpload" accept="image/*">
-                <br/>
-                <input type="submit" value="Upload">
-            </form>
-        </div>
-        {% if message %}
-            {{ message }}
-        {% endif %}
-        <br/>
-        <a href="/">Go back</a>
-    </body>
+<head>
+    <title>Image Upload</title>
+</head>
+<body>
+    <h1>Upload an Image!</h1>
+    <div>
+        <form action="/uploadImage" method="post" enctype="multipart/form-data">
+            <input type="text" name="caption_value" placeholder="Caption" required/>
+            <br/>
+            Visible to AllFollowers<br>
+            <input type="radio" name="options" value="Yes" required/>Yes
+            <br>
+            <input type="radio" name="options" value="No" checked="checked"/>No
+            <br>
+            <input type="file" name="imageToUpload" accept="image/*">
+            <br/>
+            <input type="submit" value="Upload">
+        </form>
+    </div>
+    {% if message %}
+    {{ message }}
+    {% endif %}
+    <br/>
+    <a href="/">Go back</a>
+</body>
 </html>

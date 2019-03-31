@@ -1,0 +1,36 @@
+<html>
+<head>
+	<title>Finstagram</title>
+</head>
+<body>
+
+	Close Friend Groups
+	<br>
+
+	<form action="/select_closeFriendsGroup" method="POST">
+
+
+		{% for line in groupsData %}
+		<input type="radio" name="options" value={{line}} required>{{line[4:]}}</input>
+		<br>
+		{% endfor %}
+
+		<input type="submit" value="Submit">
+
+	</form>
+    {% if message %}
+    {{ message }}
+    {% endif %}
+    <br>
+	<a href="/upload">Upload</a>
+	<br>
+	<a href="/home">Home</a>
+
+	<br>
+
+	<a href="/logout">Logout</a>
+
+</body>
+
+
+</html>

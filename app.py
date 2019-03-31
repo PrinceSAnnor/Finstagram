@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, session, redirect, url_for, send_file
 import os
+import string
+import random
 import uuid
 import hashlib
 import pymysql.cursors
@@ -18,6 +20,10 @@ connection = pymysql.connect(host="localhost",
                              port=3306,
                              cursorclass=pymysql.cursors.DictCursor,
                              autocommit=True)
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg'])
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def login_required(f):
     @wraps(f)
@@ -54,7 +60,7 @@ def images():
 
 @app.route("/image/<image_name>", methods=["GET"])
 def image(image_name):
-    image_location = os.path.join(IMAGES_DIR, image_name)
+    image_location = os.path.join(IMAGES_DIR, session["username"], image_name)
     if os.path.isfile(image_location):
         return send_file(image_location, mimetype="image/jpg")
 
@@ -92,24 +98,52 @@ def loginAuth():
 def registerAuth():
     if request.form:
         requestData = request.form
+        privFlag = 1
         username = requestData["username"]
         plaintextPasword = requestData["password"]
         hashedPassword = hashlib.sha256(plaintextPasword.encode("utf-8")).hexdigest()
         firstName = requestData["fname"]
         lastName = requestData["lname"]
-        
-        try:
-            with connection.cursor() as cursor:
-                query = "INSERT INTO person (username, password, fname, lname) VALUES (%s, %s, %s, %s)"
-                cursor.execute(query, (username, hashedPassword, firstName, lastName))
-        except pymysql.err.IntegrityError:
-            error = "%s is already taken." % (username)
-            return render_template('register.html', error=error)    
+        option = request.form['options']
+        bio = requestData["bio"]
 
-        return redirect(url_for("login"))
+        if option == "Public":
+            privFlag = 0
+        elif option == "Private":
+            privFlag = 1
+
+        AV_IMAGES_DIR = os.path.join(os.getcwd(), "images", username, "avatars")
+    
+        if request.files:   
+            image_file = request.files.get("av_imageToUpload")
+            image_name = image_file.filename
+            if not allowed_file(image_name):
+                error = "File not recognized"
+                return render_template("register.html", error=error)
+
+            filepath = os.path.join(AV_IMAGES_DIR, image_name)
+
+            try:
+                with connection.cursor() as cursor:
+                    query = "INSERT INTO person (username, password, fname, lname, avatar, isPrivate, bio) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+                    cursor.execute(query, (username, hashedPassword, firstName, lastName, image_name, int(privFlag), bio))
+            except pymysql.err.IntegrityError:
+                error = "%s is already taken." % (username)
+                return render_template('register.html', error=error)    
+            
+            if not os.path.isdir("images"):
+                os.mkdir(IMAGES_DIR)
+           
+            os.mkdir(os.path.join(os.getcwd(), "images", username))
+            os.mkdir(os.path.join(os.getcwd(), "images", username, "avatars"));
+
+            image_file.save(filepath)
+
+            return redirect(url_for("login"))
 
     error = "An error has occurred. Please try again."
     return render_template("register.html", error=error)
+
 
 @app.route("/logout", methods=["GET"])
 def logout():
@@ -119,21 +153,104 @@ def logout():
 @app.route("/uploadImage", methods=["POST"])
 @login_required
 def upload_image():
-    if request.files:
-        image_file = request.files.get("imageToUpload", "")
-        image_name = image_file.filename
-        filepath = os.path.join(IMAGES_DIR, image_name)
-        image_file.save(filepath)
-        query = "INSERT INTO photo (timestamp, filePath) VALUES (%s, %s)"
-        with connection.cursor() as cursor:
-            cursor.execute(query, (time.strftime('%Y-%m-%d %H:%M:%S'), image_name))
-        message = "Image has been successfully uploaded."
-        return render_template("upload.html", message=message)
+
+    if request.form:
+        requestData = request.form
+        followersFlag = 0
+        caption_value = requestData["caption_value"]
+        option = request.form["options"]
+
+        if option == "Yes":
+            followersFlag = 1
+        elif option == "No":
+            followersFlag = 0
+
+        if request.files:
+            image_file = request.files.get("imageToUpload", "")
+            image_name = image_file.filename
+            filepath = os.path.join(IMAGES_DIR, session["username"], image_name)
+
+            if os.path.exists(filepath):
+                image_name = os.path.splitext(image_name)[0] + "_" + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5)) + os.path.splitext(image_name)[1]
+                filepath = os.path.join(IMAGES_DIR, session["username"], image_name)
+            
+            if allowed_file(image_name):
+                image_file.save(filepath)
+                query = "INSERT INTO photo (timestamp, filePath, photoOwner, caption, allFollowers) VALUES (%s, %s, %s, %s, %s)"
+                with connection.cursor() as cursor:
+                    cursor.execute(query, (time.strftime('%Y-%m-%d %H:%M:%S'), image_name, session["username"], caption_value, 66))
+                    session["photoID"] = cursor.lastrowid
+                message = "Image has been successfully uploaded."
+                if followersFlag == 1:
+                    return render_template("upload.html", message=message)
+                elif followersFlag == 0:
+                    return redirect("/closeFriendGroups")
+            else:
+                message = "Failed to upload image."
+                return render_template("upload.html", message=message)
+
+        else:
+            message = "Failed to upload image."
+            return render_template("upload.html", message=message)
+
     else:
         message = "Failed to upload image."
         return render_template("upload.html", message=message)
 
+@app.route("/closeFriendGroups", methods=["GET"])
+@login_required
+def getCloseFriendGroups():
+    username = session["username"]
+    try:
+        with connection.cursor() as cursor:
+            query = "SELECT * FROM Belong where username = %s"
+            cursor.execute(query, (username))
+    except pymysql.err.IntegrityError:
+        error = "An error has occured" % (username)
+        return render_template("upload.html", message=error)  
+    if cursor.rowcount == 0:
+        error = "%s has no Close Friend Groups." % (username)
+        return render_template("upload.html", message=error)  
+
+    else:
+        values = []
+        groupOwners = []
+        groupNames = []
+        data = cursor.fetchall()
+        i = 0
+        for line in data:
+            values.append(str(i) + " - GroupName: " + str(line["groupName"]) + " | " + "GroupOwner: " + str(line["groupOwner"]))
+            groupOwners.append(str(line["groupOwner"]))
+            groupNames.append(str(line["groupName"]))
+            i = i + 1
+        session["GroupNames"] = groupNames
+        session["GroupOwners"] = groupOwners
+        session["GroupValues"] = values
+        return render_template("closeFriendGroups.html", groupsData=values)
+
+@app.route("/select_closeFriendsGroup", methods=["GET", "POST"])
+@login_required
+def select_closeFriendGroups():
+    groupOwner =  (session["GroupOwners"])[int(request.form["options"])]
+    groupName =  (session["GroupNames"])[int(request.form["options"])]
+    print session["photoID"]
+    print groupName
+    print groupOwner
+    if request.form:
+        try:
+            with connection.cursor() as cursor:
+                query = "INSERT INTO share (groupName, groupOwner, photoID) VALUES (%s, %s, %s)"
+                cursor.execute(query, (groupName, groupOwner, int(session["photoID"])))
+        except pymysql.err.IntegrityError:
+            error = "You've already selected this group"
+            return render_template("closeFriendGroups.html", groupsData=session["GroupValues"], message=error) 
+            
+        return render_template("closeFriendGroups.html", groupsData=session["GroupValues"], message="success")
+    error = "An error has occured"
+    return render_template("upload.html", message=error)  
+    
 if __name__ == "__main__":
     if not os.path.isdir("images"):
         os.mkdir(IMAGES_DIR)
-    app.run()
+
+    app.run(debug=True)
