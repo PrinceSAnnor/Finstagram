@@ -1,0 +1,39 @@
+<html>
+<head>
+    <title>Follow</title>
+</head>
+<body>
+    <h1>Follow</h1>
+    <div>
+        <form action="/followAuth" method="post">
+            <input type="text" name="username" placeholder="Username" required/>
+
+            <input type="submit" value="Submit">
+        </form>
+    </div>
+    <br>
+    <br>
+    <div>
+
+        {% if error %}
+        {{ error }}
+        {% endif %}
+
+        <form action="/acceptFollows" method="POST" style={{hider}}>
+            {% for line in followData %}
+            {% set deleter = line.split(' ', 1)[0] + "-"%}
+            <div>
+            <input type="radio" name="options" value={{line}} required>Accept {{line[4:]}}</input>
+            <input type="radio" name="options" value={{deleter}} >Delete {{line[4:]}}</input>
+        </div>
+            <br>
+            {% endfor %}
+
+            <input type="submit" value="Submit">
+
+        </div>
+        <br>
+        <a href="/home">Home</a>
+
+    </body>
+    </html>

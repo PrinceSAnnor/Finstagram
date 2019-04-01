@@ -1,0 +1,26 @@
+<html>
+<head>
+    <title>Finstagram</title>
+</head>
+<body>
+    <h1>Image Gallery</h1>
+    <div>
+        {% for image in images | reverse %}
+
+        <img src="/image/{{image.filePath}}" width="300"/>
+        <br>
+        <span>ID: </span><span>{{image.photoID}}</span>
+        <br>
+        <span>Owner: </span><span>{{image.photoOwner}}</span>
+        <br>
+        <span>Caption: </span><span>{{image.caption}}</span>
+        <br>
+        <span>Timestamp: </span><span>{{image.timestamp}}</span>
+        <br>
+        <br>
+
+        {% endfor %}
+    </div>
+    <a href="/">Go back</a>
+</body>
+</html>

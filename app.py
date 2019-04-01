@@ -58,9 +58,9 @@ def images():
     data = cursor.fetchall()
     return render_template("images.html", images=data)
 
-@app.route("/image/<image_name>", methods=["GET"])
-def image(image_name):
-    image_location = os.path.join(IMAGES_DIR, session["username"], image_name)
+@app.route("/image/<owner_name>/<image_name>", methods=["GET"])
+def image(owner_name, image_name):
+    image_location = os.path.join(IMAGES_DIR, owner_name, image_name)
     if os.path.isfile(image_location):
         return send_file(image_location, mimetype="image/jpg")
 
@@ -169,16 +169,17 @@ def upload_image():
             image_file = request.files.get("imageToUpload", "")
             image_name = image_file.filename
             filepath = os.path.join(IMAGES_DIR, session["username"], image_name)
-
+            imagepath  = os.path.join(session["username"], image_name)
             if os.path.exists(filepath):
                 image_name = os.path.splitext(image_name)[0] + "_" + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5)) + os.path.splitext(image_name)[1]
                 filepath = os.path.join(IMAGES_DIR, session["username"], image_name)
-            
+                imagepath  = os.path.join(session["username"], image_name)
+
             if allowed_file(image_name):
                 image_file.save(filepath)
                 query = "INSERT INTO photo (timestamp, filePath, photoOwner, caption, allFollowers) VALUES (%s, %s, %s, %s, %s)"
                 with connection.cursor() as cursor:
-                    cursor.execute(query, (time.strftime('%Y-%m-%d %H:%M:%S'), image_name, session["username"], caption_value, 66))
+                    cursor.execute(query, (time.strftime('%Y-%m-%d %H:%M:%S'), imagepath, session["username"], caption_value, 66))
                     session["photoID"] = cursor.lastrowid
                 message = "Image has been successfully uploaded."
                 if followersFlag == 1:
@@ -203,14 +204,14 @@ def getCloseFriendGroups():
     username = session["username"]
     try:
         with connection.cursor() as cursor:
-            query = "SELECT * FROM Belong where username = %s"
-            cursor.execute(query, (username))
+            query = "SELECT groupName, groupOwner FROM Belong left join (SELECT * FROM Share where photoID=%s) AS T2 using (groupName, groupOwner) WHERE photoID is NULL AND username = %s"
+            cursor.execute(query, (session["photoID"], username))
     except pymysql.err.IntegrityError:
-        error = "An error has occured" % (username)
-        return render_template("upload.html", message=error)  
+        error = "An error has occured"
+        return render_template("closeFriendGroups.html", message=error, hider="display:none;")  
     if cursor.rowcount == 0:
-        error = "%s has no Close Friend Groups." % (username)
-        return render_template("upload.html", message=error)  
+        error = "%s has no more Close Friend Groups to share photo with." % (username)
+        return render_template("closeFriendGroups.html", message=error, hider="display:none;")  
 
     else:
         values = []
@@ -231,23 +232,124 @@ def getCloseFriendGroups():
 @app.route("/select_closeFriendsGroup", methods=["GET", "POST"])
 @login_required
 def select_closeFriendGroups():
-    groupOwner =  (session["GroupOwners"])[int(request.form["options"])]
-    groupName =  (session["GroupNames"])[int(request.form["options"])]
-    print session["photoID"]
-    print groupName
-    print groupOwner
     if request.form:
+        option_data = int(request.form["options"])
+        if option_data < len(session["GroupOwners"]):
+            groupOwner =  (session["GroupOwners"])[option_data]
+            groupName =  (session["GroupNames"])[option_data]
+            print session["photoID"]
+            print groupName
+            print groupOwner
+            if request.form:
+                try:
+                    with connection.cursor() as cursor:
+                        query = "INSERT INTO share (groupName, groupOwner, photoID) VALUES (%s, %s, %s)"
+                        cursor.execute(query, (groupName, groupOwner, int(session["photoID"])))
+                except pymysql.err.IntegrityError:
+                    error = "You've already selected this group"
+                    return redirect("/closeFriendGroups") 
+                try:
+                    session.pop("GroupNames") 
+                    session.pop("GroupOwners")  
+                    session.pop("GroupOwners") 
+                except:
+                    pass
+                return redirect("/closeFriendGroups")
+            error = "An error has occured"
+            return render_templaterender_template("closeFriendGroups.html", message=error, hider="display:none;")  
+        else:
+            error = "An error has occured"
+            return render_template("closeFriendGroups.html", message=error, hider="display:none;")  
+    else:
+        error = "An error has occured"
+        return render_template("closeFriendGroups.html", message=error, hider="display:none;")   
+
+@app.route("/follow", methods=["GET"])
+@login_required
+def follow():
+    username = session["username"]
+    try:
+        with connection.cursor() as cursor:
+            query = "SELECT * FROM Follow where followerUsername = %s AND acceptedFollow = 0"
+            cursor.execute(query, (username))
+    except pymysql.err.IntegrityError:
+        error = "An error has occured"
+        return render_template('follow.html', error=error, hider="display:none;")   
+    if cursor.rowcount == 0:
+        error = "No follow requests."
+        return render_template('follow.html', error=error, hider="display:none;")  
+    else:
+        values = []
+        followeeUsernames = []
+        data = cursor.fetchall()
+        i = 0
+        for line in data:
+            followeeUsernames.append(str(i) + " - " + str(line["followeeUsername"]))
+            values.append(str(line["followeeUsername"]))
+            i = i + 1
+        session["followValues"] = values
+        session["followeeUsernames"] = followeeUsernames
+        return render_template("follow.html", followData=followeeUsernames, error="Follow requests to accept")
+
+@app.route("/followAuth", methods=["POST"])
+@login_required
+def followAuth():
+    if request.form:
+        requestData = request.form
+        username = requestData["username"]
         try:
             with connection.cursor() as cursor:
-                query = "INSERT INTO share (groupName, groupOwner, photoID) VALUES (%s, %s, %s)"
-                cursor.execute(query, (groupName, groupOwner, int(session["photoID"])))
+                query = "INSERT INTO follow (followerUsername, followeeUsername, acceptedFollow) VALUES (%s, %s, 0)"
+                cursor.execute(query, (username, session["username"]))
         except pymysql.err.IntegrityError:
-            error = "You've already selected this group"
-            return render_template("closeFriendGroups.html", groupsData=session["GroupValues"], message=error) 
-            
-        return render_template("closeFriendGroups.html", groupsData=session["GroupValues"], message="success")
-    error = "An error has occured"
-    return render_template("upload.html", message=error)  
+            error = "You are already following %s or %s doesn't exist ." % (username, username)
+            return render_template('follow.html', error=error)    
+        error = "Sucess"
+        return redirect("/follow")  
+                  
+    error = "An error has occurred. Please try again."
+    return render_template('follow.html', error=error, hider="display:none;") 
+
+@app.route("/acceptFollows", methods=["POST"])
+@login_required
+def acceptfollowAuth():
+    flag = 1
+    if request.form:
+        option_data =  request.form["options"]
+        if not option_data.isdigit():
+            option_data =  (request.form["options"]).split('-', 1)[0]
+            if int(option_data) >= len(session["followValues"]) or not option_data.isdigit():
+                error = "An error has occurred. Please try again."
+                return render_template('follow.html', error=error, hider="display:none;") 
+            deleteUsername =  (session["followValues"])[int(option_data)]
+            flag = 0
+        else: 
+            if int(option_data) >= len(session["followValues"]):
+                error = "An error has occurred. Please try again."
+                return render_template('follow.html', error=error, hider="display:none;") 
+            followeeUsername = (session["followValues"])[int(option_data)]
+        if flag:
+            try:
+                with connection.cursor() as cursor:
+                    query = "UPDATE follow set acceptedFollow = 1 WHERE followeeUsername = %s AND followerUsername = %s"
+                    cursor.execute(query, (followeeUsername, session["username"]))
+            except pymysql.err.IntegrityError:
+                error = "You are already following %s or %s doesn't exist ." % (username, username)
+                return render_template('follow.html', error=error)    
+            return redirect("/follow")  
+        else:
+            print "haha" 
+            try:
+                with connection.cursor() as cursor:
+                    query = "DELETE from follow WHERE followeeUsername = %s AND followerUsername = %s"
+                    cursor.execute(query, (deleteUsername, session["username"]))
+            except pymysql.err.IntegrityError:
+                error = "An error has occurred"
+                return render_template('follow.html', error=error, hider="display:none;")  
+            return redirect("/follow")
+
+    error = "An error occurred. Please try again."
+    return render_template('follow.html', error=error, hider="display:none;") 
     
 if __name__ == "__main__":
     if not os.path.isdir("images"):
