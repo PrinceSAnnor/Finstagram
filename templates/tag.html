@@ -1,26 +1,33 @@
 <html>
 <head>
-    <title>Finstagram</title>
+    <title>Tags</title>
 </head>
 <body>
-    <h1>Image Gallery</h1>
+    <h1>Tags</h1>
     <div>
-        {% for image in images | reverse %}
+        {% if error %}
+        {{ error }}
+        {% endif %}
 
-        <img src="/image/{{image.filePath}}" width="300"/>
-        <br>
-        <span>ID: </span><span>{{image.photoID}}</span>
-        <br>
-        <span>Owner: </span><span>{{image.photoOwner}}</span>
-        <br>
-        <span>Caption: </span><span>{{image.caption}}</span>
-        <br>
-        <span>Timestamp: </span><span>{{image.timestamp}}</span>
-        <br>
-        <br>
+        <form action="/acceptTags" method="POST" style={{hider}}>
+            {% for photoID_line, photoOwners_line, path_line, index_line in iD_owner_path_index %}
+            {% set deleter = index_line + "-"%}
+            <div>
+                <img src="/image/{{photoOwners_line}}/{{path_line}}" width="300"/>
+                <br>
+                <input type="radio" name="options" value={{index_line}} required>Accept Tag for PhotoID: {{photoID_line}}</input>
+                <br>
+                <input type="radio" name="options" value={{deleter}} >Reject Tag for PhotoID: {{photoID_line}}</input>
+            </div>
+            <br>
+            {% endfor %}
 
-        {% endfor %}
+            <input type="submit" value="Submit">
+        </form>
     </div>
-    <a href="/">Go back</a>
+    <br>
+
+    <a href="/home">Home</a>
+
 </body>
 </html>

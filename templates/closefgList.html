@@ -4,34 +4,25 @@
 </head>
 <body>
 
-	Choose Friend Groups
-	<br>
+	<h4 style={{hider}}>Choose Close Friend Group to add user to</h4>
 
-	<form action="/select_closeFriendsGroup" method="POST"  style={{hider}}>
-
-
+	<form action="/closefgChoose" method="POST" style={{hider}}>
 		{% for line in groupsData %}
 		<input type="radio" name="options" value={{line}} required>{{line[4:]}}</input>
 		<br>
 		{% endfor %}
-		<a href="/images">Done</a>
-		<br>
 		<input type="submit" value="Submit">
 
 	</form>
-    {% if message %}
-    {{ message }}
-    {% endif %}
-    <br>
-	<a href="/upload">Upload</a>
+	<br>
+	{% if message %}
+	{{ message }}
+	{% endif %}
+	<br>
 	<br>
 	<a href="/home">Home</a>
-
 	<br>
-
 	<a href="/logout">Logout</a>
 
 </body>
-
-
 </html>

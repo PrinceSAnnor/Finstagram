@@ -5,7 +5,7 @@
 <body>
     <h1>Follow</h1>
     <div>
-        <form action="/followAuth" method="post">
+        <form action="/followAuth" method="post" style={{hider2}}>
             <input type="text" name="username" placeholder="Username" required/>
 
             <input type="submit" value="Submit">
@@ -23,9 +23,9 @@
             {% for line in followData %}
             {% set deleter = line.split(' ', 1)[0] + "-"%}
             <div>
-            <input type="radio" name="options" value={{line}} required>Accept {{line[4:]}}</input>
-            <input type="radio" name="options" value={{deleter}} >Delete {{line[4:]}}</input>
-        </div>
+                <input type="radio" name="options" value={{line}} required>Accept {{line[4:]}}</input>
+                <input type="radio" name="options" value={{deleter}} >Delete {{line[4:]}}</input>
+            </div>
             <br>
             {% endfor %}
 

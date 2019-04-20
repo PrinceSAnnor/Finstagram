@@ -1,0 +1,26 @@
+<html>
+<head>
+    <title>Tag someone</title>
+</head>
+<body>
+    <h1>Tag someone</h1>
+    <div>
+        <form action="/tagMeAuth" method="post" style={{hider}}>
+            <input type="text" name="username" placeholder="Username" required/>
+
+            <input type="submit" value="Submit">
+        </form>
+    </div>
+    <br>
+    {% if error %}
+    {{ error }}
+    {% endif %}
+
+
+    <br>
+    <a href="/images">View Images</a>
+    <br>
+    <a href="/home">Home</a>
+
+</body>
+</html>

@@ -4,12 +4,14 @@
 </head>
 <body>
     <h1>Image Gallery</h1>
+    <h4>Click image to add tag</h4>
     <div>
         {% for image in images | reverse %}
-
-        <img src="/image/{{image.filePath}}" width="300"/>
+        <a href="/tagMe/{{image.ID}}">
+        <img src="/image/{{image.photoOwner}}/{{image.filePath}}" width="300"/>
+    </a>
         <br>
-        <span>ID: </span><span>{{image.photoID}}</span>
+        <span>ID: </span><span>{{image.ID}}</span>
         <br>
         <span>Owner: </span><span>{{image.photoOwner}}</span>
         <br>
@@ -17,10 +19,20 @@
         <br>
         <span>Timestamp: </span><span>{{image.timestamp}}</span>
         <br>
+        
+        {% for tag_line in tags %}
+        {% if image.ID == tag_line.ID %}
+        <span>Tags: First name: </span><span>{{tag_line.fname}} | </span>
+        <span>Last name: </span><span>{{tag_line.lname}}</span>
         <br>
-
+        {% endif%}
+        {% endfor %}
+        {% for tag_reqs_line in tagReqs %}
+        
+        {% endfor %}
+        <br>
         {% endfor %}
     </div>
-    <a href="/">Go back</a>
+    <a href="/home">Home</a>
 </body>
 </html>
