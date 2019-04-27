@@ -46,6 +46,10 @@ def index():
 @app.route("/home")
 @login_required
 def home():
+    filepath = os.path.join(IMAGES_DIR, session["username"], "avatars")
+    if not os.path.exists(filepath):
+        os.mkdir(os.path.join(IMAGES_DIR, session["username"]))
+        os.mkdir(filepath)
     return render_template("home.html", username=session["username"])
 
 @app.route("/upload", methods=["GET"])
@@ -173,7 +177,7 @@ def upload_image():
                     session["photoID"] = cursor.lastrowid
                 message = "Image has been successfully uploaded."
                 if followersFlag == 1:
-                    return render_template("upload.html", message=message)
+                    return render_template("upload.html", message=message, hider="display:none;")
                 elif followersFlag == 0:
                     return redirect("/closeFriendGroups")
             else:
@@ -200,6 +204,8 @@ def images():
     with connection.cursor() as cursor:
         cursor.execute(query)
     tagData = cursor.fetchall()
+    if cursor.rowcount == 0:
+        return render_template("images.html", images=data)
     return render_template("images.html", images=data, tags=tagData)
 
 @app.route("/image/<owner_name>/<image_name>", methods=["GET"])
@@ -395,13 +401,13 @@ def acceptTagAuth():
         option_data =  request.form["options"]
         if not option_data.isdigit():
             option_data =  (request.form["options"]).split('-', 1)[0]
-            if int(option_data) >= len(session["tagUsernames"]) or not option_data.isdigit():
+            if int(option_data) >= len(session["tagPhotoIDs"]) or not option_data.isdigit():
                 error = "An error has occurred. Please try again."
                 return render_template('tag.html', error=error, hider="display:none;") 
             deleteTagPhotoID =  (session["tagPhotoIDs"])[int(option_data)]
             flag = 0
         else: 
-            if int(option_data) >= len(session["tagUsernames"]):
+            if int(option_data) >= len(session["tagPhotoIDs"]):
                 error = "An error has occurred. Please try again."
                 return render_template('tag.html', error=error, hider="display:none;") 
             acceptTagPhotoID =  (session["tagPhotoIDs"])[int(option_data)]
