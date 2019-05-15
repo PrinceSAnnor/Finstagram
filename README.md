@@ -1,3 +1,1 @@
 # Finstagram
-
-Databases final project
